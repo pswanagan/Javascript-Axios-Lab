@@ -34,6 +34,7 @@ axios.interceptors.request.use(
 // Add a response interceptor
 axios.interceptors.response.use(
   function (response) {
+    document.body.style.cursor = "default";
     // Measure and log the time taken for the request
     const endTime = new Date();
     const duration = endTime - response.config.metadata.startTime;
@@ -44,6 +45,7 @@ axios.interceptors.response.use(
     return response;
   },
   function (error) {
+    document.body.style.cursor = "default";
     // Do something with response error
     return Promise.reject(error);
   },
