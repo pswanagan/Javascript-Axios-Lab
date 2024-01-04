@@ -26,6 +26,7 @@ axios.interceptors.request.use(
   },
   function (error) {
     // Do something with request error
+
     return Promise.reject(error);
   },
 );
@@ -162,6 +163,8 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     console.error("Progress bar element not found");
   }
+  // Set the body cursor to progress
+  document.body.style.cursor = "progress";
   // Attach the event listener to breedSelect
   const breedSelect = document.getElementById("breedSelect");
   if (breedSelect) {
