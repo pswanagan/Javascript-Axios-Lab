@@ -7,13 +7,46 @@ const breedSelect = document.getElementById("breedSelect");
 const infoDump = document.getElementById("infoDump");
 // The progress bar div element.
 const progressBar = document.getElementById("progressBar");
+
 // The get favourites button element.
 const getFavouritesBtn = document.getElementById("getFavouritesBtn");
 
 // Step 0: Store your API key here for reference and easy access.
 const API_KEY =
   "live_56PT4MgCCGxyAkIhFcDHYFnM5I7puQvsLtmqB5BezueATfTBNCohtKxC2E7G4Xjv";
+// Add a request interceptor
+axios.interceptors.request.use(
+  function (config) {
+    // Log when a request starts
+    console.log(`Request started at: ${new Date().toISOString()}`);
 
+    // Add a custom property to track the start time
+    config.metadata = { startTime: new Date() };
+    return config;
+  },
+  function (error) {
+    // Do something with request error
+    return Promise.reject(error);
+  },
+);
+
+// Add a response interceptor
+axios.interceptors.response.use(
+  function (response) {
+    // Measure and log the time taken for the request
+    const endTime = new Date();
+    const duration = endTime - response.config.metadata.startTime;
+    console.log(
+      `Response received at: ${endTime.toISOString()} (Duration: ${duration} ms)`,
+    );
+
+    return response;
+  },
+  function (error) {
+    // Do something with response error
+    return Promise.reject(error);
+  },
+);
 /**
  * 1. Create an async function "initialLoad" that does the following:
  * - Retrieve a list of breeds from the cat API using fetch().
@@ -28,8 +61,12 @@ async function initialLoad() {
     const apiUrl = `https://api.thecatapi.com/v1/breeds?api_key=${API_KEY}`;
 
     // Fetching the list of breeds from the cat API
-    const response = await fetch(apiUrl);
-    const breeds = await response.json();
+    const response = await axios.get(apiUrl, {
+      onDownloadProgress: updateProgress,
+    });
+
+    const breeds = response.data;
+
     const breedSelect = document.getElementById("breedSelect");
     // Creating and appending options for each breed
     breeds.forEach((breed) => {
@@ -74,15 +111,17 @@ async function handleBreedSelection(event) {
   const apiUrl = `https://api.thecatapi.com/v1/images/search?breed_ids=${breedId}&limit=10&hasBreed=1&api_key=${API_KEY}`;
 
   try {
-    const response = await fetch(apiUrl);
-    const breedImages = await response.json();
+    const response = await axios.get(apiUrl, {
+      onDownloadProgress: updateProgress,
+    });
+    const breedImages = response.data;
 
     // Clearing existing carousel items
     clear();
 
     breedImages.forEach((image) => {
       // Create new carousel item
-      console.log(image);
+
       const carouselElement = createCarouselItem(
         image.url,
         `Image of ${breedName}`,
@@ -117,6 +156,13 @@ async function handleBreedSelection(event) {
 }
 // Attach the event listener to breedSelect
 document.addEventListener("DOMContentLoaded", () => {
+  const progressBar = document.getElementById("progressBar");
+  if (progressBar) {
+    progressBar.style.width = "0%";
+  } else {
+    console.error("Progress bar element not found");
+  }
+  // Attach the event listener to breedSelect
   const breedSelect = document.getElementById("breedSelect");
   if (breedSelect) {
     breedSelect.addEventListener("change", handleBreedSelection);
@@ -158,7 +204,17 @@ document.addEventListener("DOMContentLoaded", () => {
  *   once or twice per request to this API. This is still a concept worth familiarizing yourself
  *   with for future projects.
  */
+function updateProgress(event) {
+  // Log the ProgressEvent object
+  console.log(event);
 
+  // Calculate the percentage of completion
+  const percentCompleted = Math.round((event.loaded * 100) / event.total);
+
+  // Update the progress bar width
+  const progressBar = document.getElementById("progressBar");
+  progressBar.style.width = `${percentCompleted}%`;
+}
 /**
  * 7. As a final element of progress indication, add the following to your axios interceptors:
  * - In your request interceptor, set the body element's cursor style to "progress."
