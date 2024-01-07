@@ -17,6 +17,8 @@ const API_KEY =
 // Add a request interceptor
 axios.interceptors.request.use(
   function (config) {
+    // Reset the progress bar
+    progressBar.style.width = "0%";
     // Log when a request starts
     console.log(`Request started at: ${new Date().toISOString()}`);
 
@@ -34,6 +36,8 @@ axios.interceptors.request.use(
 // Add a response interceptor
 axios.interceptors.response.use(
   function (response) {
+    // Complete the progress bar
+    progressBar.style.width = "100%";
     document.body.style.cursor = "default";
     // Measure and log the time taken for the request
     const endTime = new Date();
@@ -111,7 +115,7 @@ initialLoad();
 async function handleBreedSelection(event) {
   const breedId = event.target.value;
   const breedName = event.target.options[event.target.selectedIndex].text;
-  const apiUrl = `https://api.thecatapi.com/v1/images/search?breed_ids=${breedId}&limit=10&hasBreed=1&api_key=${API_KEY}`;
+  const apiUrl = `https://api.thecatapi.com/v1/images/search?breed_ids=${breedId}&limit=10&api_key=${API_KEY}`;
 
   try {
     const response = await axios.get(apiUrl, {
@@ -159,14 +163,6 @@ async function handleBreedSelection(event) {
 }
 // Attach the event listener to breedSelect
 document.addEventListener("DOMContentLoaded", () => {
-  const progressBar = document.getElementById("progressBar");
-  if (progressBar) {
-    progressBar.style.width = "0%";
-  } else {
-    console.error("Progress bar element not found");
-  }
-  // Set the body cursor to progress
-  document.body.style.cursor = "progress";
   // Attach the event listener to breedSelect
   const breedSelect = document.getElementById("breedSelect");
   if (breedSelect) {
@@ -210,14 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
  *   with for future projects.
  */
 function updateProgress(event) {
-  // Log the ProgressEvent object
-  console.log(event);
-
-  // Calculate the percentage of completion
-  const percentCompleted = Math.round((event.loaded * 100) / event.total);
-
-  // Update the progress bar width
   const progressBar = document.getElementById("progressBar");
+  // Calculate the progress as a percentage
+  const percentCompleted = Math.round((event.loaded * 100) / event.total);
   progressBar.style.width = `${percentCompleted}%`;
 }
 /**
@@ -237,7 +228,51 @@ function updateProgress(event) {
  * - You can call this function by clicking on the heart at the top right of any image.
  */
 export async function favourite(imgId) {
-  // your code here
+  const baseURL = "https://api.thecatapi.com/v1";
+  const favoritesEndpoint = `${baseURL}/favourites`;
+
+  try {
+    const favoriteId = await getFavoriteId(imgId);
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY,
+      },
+    };
+
+    if (favoriteId) {
+      // If already favorited, send a DELETE request to remove it from favorites
+      await axios.delete(`${favoritesEndpoint}/${favoriteId}`, config);
+      console.log(`Image with ID ${imgId} has been unfavorited.`);
+    } else {
+      // If not favorited, send a POST request to add it to favorites
+      const payload = {
+        image_id: imgId,
+        sub_id: "null", // Replace with actual sub_id if needed
+      };
+
+      const response = await axios.post(favoritesEndpoint, payload, config);
+      console.log("Successfully favorited image", response.data);
+    }
+  } catch (error) {
+    console.error("Error toggling favorite status:", error);
+  }
+}
+
+async function getFavoriteId(imageId) {
+  try {
+    const response = await axios.get(
+      "https://api.thecatapi.com/v1/favourites",
+      {
+        headers: { "x-api-key": API_KEY },
+      },
+    );
+    const favorite = response.data.find((fav) => fav.image_id === imageId);
+    return favorite ? favorite.id : null;
+  } catch (error) {
+    console.error("Error fetching favorites:", error);
+    return null;
+  }
 }
 
 /**
@@ -249,7 +284,37 @@ export async function favourite(imgId) {
  *    If that isn't in its own function, maybe it should be so you don't have to
  *    repeat yourself in this section.
  */
+async function getFavourites() {
+  const favoritesEndpoint = "https://api.thecatapi.com/v1/favourites";
 
+  try {
+    const response = await axios.get(favoritesEndpoint, {
+      headers: { "x-api-key": API_KEY },
+    });
+
+    const favorites = response.data;
+    clear(); // Clear the current carousel
+
+    favorites.forEach((fav) => {
+      const carouselItem = createCarouselItem(
+        fav.image.url,
+        `Image of favorite`,
+        fav.image_id,
+      );
+      appendCarousel(carouselItem);
+    });
+  } catch (error) {
+    console.error("Error fetching favorites:", error);
+  }
+}
+
+// Bind the getFavourites function to the button
+document.addEventListener("DOMContentLoaded", () => {
+  const getFavouritesBtn = document.getElementById("getFavouritesBtn");
+  if (getFavouritesBtn) {
+    getFavouritesBtn.addEventListener("click", getFavourites);
+  }
+});
 /**
  * 10. Test your site, thoroughly!
  * - What happens when you try to load the Malayan breed?
